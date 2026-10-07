@@ -26,6 +26,7 @@ def login():
                 u.usuario,
                 u.password,
                 u.activo,
+                u.intentos_fallidos,
                 r.nombre AS rol
             FROM usuarios u
             INNER JOIN roles r
@@ -37,27 +38,93 @@ def login():
 
         user = cursor.fetchone()
 
-        cursor.close()
-        connection.close()
-
         if user is None:
+
+            cursor.close()
+            connection.close()
+
             return render_template(
                 "auth/login.html",
                 error="Usuario o contraseña incorrectos."
             )
 
         if not user["activo"]:
+
+            cursor.close()
+            connection.close()
+
             return render_template(
                 "auth/login.html",
-                error="El usuario se encuentra desactivado."
+                error="La cuenta se encuentra bloqueada."
             )
 
         if not check_password_hash(user["password"], password):
-            return render_template(
-                "auth/login.html",
-                error="Usuario o contraseña incorrectos."
+
+            nuevos_intentos = user["intentos_fallidos"] + 1
+
+            if nuevos_intentos >= 3:
+
+                cursor.execute(
+                    """
+                    UPDATE usuarios
+                    SET
+                        intentos_fallidos = %s,
+                        activo = FALSE
+                    WHERE id = %s
+                    """,
+                    (nuevos_intentos, user["id"])
+                )
+
+                connection.commit()
+
+                cursor.close()
+                connection.close()
+
+                return render_template(
+                    "auth/login.html",
+                    error="Cuenta bloqueada por demasiados intentos fallidos."
+                )
+
+            cursor.execute(
+                """
+                UPDATE usuarios
+                SET intentos_fallidos = %s
+                WHERE id = %s
+                """,
+                (nuevos_intentos, user["id"])
             )
 
+            connection.commit()
+
+            cursor.close()
+            connection.close()
+
+            intentos_restantes = 3 - nuevos_intentos
+
+            return render_template(
+                "auth/login.html",
+                error=(
+                    "Usuario o contraseña incorrectos. "
+                    f"Intentos restantes: {intentos_restantes}."
+                )
+            )
+
+        # Contraseña correcta: reiniciar contador
+        cursor.execute(
+            """
+            UPDATE usuarios
+            SET intentos_fallidos = 0
+            WHERE id = %s
+            """,
+            (user["id"],)
+        )
+
+        connection.commit()
+
+        cursor.close()
+        connection.close()
+
+        # Crear sesión
         session["usuario_id"] = user["id"]
         session["nombre"] = user["nombre"]
         session["usuario"] = user["usuario"]
