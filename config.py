@@ -1,12 +1,14 @@
 import os
-
 from dotenv import load_dotenv
-
 
 load_dotenv()
 
 
 class Config:
+    SECRET_KEY = os.getenv(
+        "SECRET_KEY",
+        "manzanita_store_clave_desarrollo_2026"
+    )
 
     DB_HOST = os.getenv("DB_HOST")
     DB_PORT = os.getenv("DB_PORT")

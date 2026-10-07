@@ -61,3 +61,12 @@ body {
 .login-card button:hover {
     background-color: #555;
 }
+
+.error {
+    margin-bottom: 18px;
+    padding: 10px;
+    border-radius: 6px;
+    background-color: #fee2e2;
+    color: #991b1b;
+    text-align: center;
+}
